@@ -16,5 +16,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cyber_frontend
+    restart: always
+    ports:
+      - "3000:80"
+
 volumes:
   postgres_data:
