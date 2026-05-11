@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAuthStore } from '../store/authStore';
+import api from '../lib/api';
+import { useNavigate } from 'react-router-dom';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -14,17 +16,34 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const LoginPage = () => {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
   const login = useAuthStore((state) => state.login);
+  const navigate = useNavigate();
 
   const onSubmit = async (data: LoginFormValues) => {
-    // Mock login delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log('Login attempt:', data);
-    login({ id: '1', name: 'Demo User', email: data.email });
-    alert('Login successful! Welcome to SOC Trainer.');
+    try {
+      const response = await api.post('/auth/login', {
+        email: data.email,
+        password: data.password
+      });
+      const token = response.data.access_token;
+      
+      // Get user profile with the token
+      const userResponse = await api.get('/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      login(userResponse.data, token);
+      navigate('/');
+    } catch (err: any) {
+      if (err.response && err.response.data && err.response.data.detail) {
+        setError('root', { message: err.response.data.detail });
+      } else {
+        setError('root', { message: 'Login failed. Please check your credentials.' });
+      }
+    }
   };
 
   return (
@@ -78,6 +97,11 @@ export const LoginPage = () => {
               </div>
             </div>
 
+            {errors.root && (
+              <div className="bg-error/20 border border-error text-error px-4 py-3 rounded-md text-sm">
+                {errors.root.message}
+              </div>
+            )}
             <div>
               <button
                 type="submit"

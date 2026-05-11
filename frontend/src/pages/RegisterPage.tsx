@@ -4,6 +4,8 @@ import { Shield } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import api from '../lib/api';
+import { useNavigate } from 'react-router-dom';
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -14,15 +16,27 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export const RegisterPage = () => {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterFormValues>({
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
   });
+  const navigate = useNavigate();
 
   const onSubmit = async (data: RegisterFormValues) => {
-    // Mock register delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log('Register attempt:', data);
-    alert('Register feature is a stub for now.');
+    try {
+      await api.post('/auth/register', {
+        email: data.email,
+        password: data.password,
+        name: data.name
+      });
+      alert('Registration successful! Please log in.');
+      navigate('/login');
+    } catch (err: any) {
+      if (err.response && err.response.data && err.response.data.detail) {
+        setError('root', { message: err.response.data.detail });
+      } else {
+        setError('root', { message: 'Registration failed. Please try again.' });
+      }
+    }
   };
 
   return (
@@ -94,6 +108,11 @@ export const RegisterPage = () => {
               </div>
             </div>
 
+            {errors.root && (
+              <div className="bg-error/20 border border-error text-error px-4 py-3 rounded-md text-sm">
+                {errors.root.message}
+              </div>
+            )}
             <div>
               <button
                 type="submit"
